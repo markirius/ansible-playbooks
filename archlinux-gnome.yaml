@@ -1,0 +1,121 @@
+---
+- name: Post install archlinux with gnome
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: full system upgrade
+      pacman:
+        update_cache: yes
+        upgrade: yes
+         
+    - name: Setting language on /etc/locale.gen
+      lineinfile:
+        path: /etc/locale.gen
+        regexp: '^#pt_BR*.UTF'
+        line: pt_BR.UTF-8 UTF-8
+
+    - name: Executing locale-gen
+      shell: /usr/bin/locale-gen
+
+    - name: locale.conf file
+      file:
+        path: "/etc/locale.conf"
+        state: touch
+
+    - name: set systemwide locale
+      lineinfile:
+        path: "/etc/locale.conf"
+        line: LANG=pt_BR.UTF-8
+
+    - name: vconsole.conf file
+      file:
+        path: "/etc/vconsole.conf"
+        state: touch
+
+    - name: Writing vconsole.conf file
+      lineinfile:
+        path: /etc/vconsole.conf
+        line: KEYMAP=br-abnt2
+
+    - name: Symbolic link for timezone
+      file:
+        src: /usr/share/zoneinfo/America/Maceio
+        dest: /etc/localtime
+        state: link
+
+    - name: Updating hardware clock
+      shell: /usr/bin/hwclock --systohc
+
+    - name: hostname file
+      file:
+        path: "/etc/hostname"
+        state: touch
+
+    - name: hostname
+      lineinfile:
+        path: "/etc/hostname"
+        line: "{{ hostname }}"
+
+    - name: hosts
+      lineinfile:
+        path: "/etc/hosts"
+        line: "127.0.0.1\t\tlocalhost\n0.0.0.0\t\t\tlocalhost\n127.0.1.1\t\t{{ hostname }}.localdomain\t{{ hostname }}"
+
+    - name: gnome packages
+      pacman:
+        name: "{{ item }}"
+        state: present
+      with_items:
+        - gnome
+        - firefox-i18n-pt-br
+        - openssh
+        - alsa-utils
+        - pulseaudio
+        - pulseaudio-alsa
+        - ntfs-3g
+        - tmux
+        - podman
+        - xorg-server
+        - mesa
+        - exfat-utils
+        - cups
+        - gimp
+        - inkscape
+        - mpv
+        - git
+        - python-pip
+        - rsync
+        - aria2
+        - qemu
+
+    - name: asdf-vm
+      become_user: "{{ user }}"
+      git:
+        repo: "https://github.com/asdf-vm/asdf.git"
+        dest: ~/.asdf
+        version: v0.8.1
+
+    - name: asdf-vm add bashrc
+      become_user: "{{ user }}"
+      lineinfile:
+        line: "{{ item }}"
+        path: ~/.bashrc
+      with_items:
+        - "# asdf-vm"
+        - ". $HOME/.asdf/asdf.sh"
+        - ". $HOME/.asdf/completions/asdf.bash"
+
+    - name: asdf plugins install
+      become_user: "{{ user }}"
+      shell: "$HOME/.asdf/bin/asdf plugin-add {{ item }}"
+      with_items:
+        - python
+        - nodejs
+        - 
+
+    - name: systemctl
+      shell: /usr/bin/systemctl enable {{ item }}
+      with_items:
+        - gdm
+        - cups

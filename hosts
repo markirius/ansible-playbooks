@@ -1,0 +1,6 @@
+[hosts]
+localhost
+
+[hosts:vars]
+hostname=anyhost
+user=anyuser
