@@ -2,5 +2,4 @@
 localhost
 
 [hosts:vars]
-hostname=anyhost
-user=anyuser
+ansible_connection=local

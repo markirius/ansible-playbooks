@@ -1,0 +1,143 @@
+---
+- name: G2P install
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Update and upgrade system
+      become: true
+      apt:
+        upgrade: yes
+        update_cache: yes
+        cache_valid_time: 86400
+
+    - name: MongoDB | Import public key
+      apt_key:
+        url: 'https://www.mongodb.org/static/pgp/server-4.2.asc'
+        state: present
+
+    - name: MongoDB | Add repository
+      apt_repository:
+        filename: '/etc/apt/sources.list.d/mongodb-org-4.2.list'
+        repo: 'deb https://repo.mongodb.org/apt/ubuntu bionic/mongodb-org/4.2 multiverse'
+        state: present
+        update_cache: yes
+
+    - name: MongoDB | Install
+      become: true
+      apt:
+        name: mongodb-org
+        state: present
+        update_cache: yes
+
+    - name: Jenkins | Add APT Key
+      ansible.builtin.shell: |
+        curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io.key | sudo tee \
+        /usr/share/keyrings/jenkins-keyring.asc > /dev/null
+      tags:
+        - jenkins
+
+    - name: Jenkins | Write repository entry
+      ansible.builtin.shell: |
+        echo deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] \
+        https://pkg.jenkins.io/debian-stable binary/ | sudo tee \
+        /etc/apt/sources.list.d/jenkins.list > /dev/null
+      tags:
+        - jenkins
+
+    - name: APT | Install dependence packages
+      apt:
+        name: "{{ item }}"
+        state: present
+        update_cache: yes
+      with_items:
+        - git
+        - vim
+        - openjdk-11-jre
+        - openjdk-11-jdk
+        - build-essential
+        - unixodbc
+        - unixodbc-dev
+        - odbcinst
+        - libbz2-dev
+        - libffi-dev
+        - liblzma-dev
+        - libncursesw5-dev
+        - libreadline-dev
+        - libsqlite3-dev
+        - libssl-dev
+        - libxml2-dev
+        - libxmlsec1-dev
+        - zlib1g-dev
+        - python-is-python3
+        - jenkins
+
+          # 
+          #     - name: Copy jenkins.list to /etc/apt/sources.list.d/jenkins.list
+          #       copy:
+          #         src: jenkins.list
+          #         dest: /etc/apt/sources.list.d/jenkins.list
+          # 
+          #     - name: Install Jenkins
+          #       apt: 
+          #         name: jenkins
+          #         update_cache: yes
+          #         install_recommends: no
+
+    - name: Setting local bin folder for non root user
+      become_user: "{{ lookup('env', 'USER') }}"
+      lineinfile:
+        line: "{{ item }}"
+        path: ~/.bashrc
+      with_items:
+        - "# set local/bin folder"
+        - "export PATH=$PATH:$HOME/.local/bin"
+
+    - name: asdf-vm
+      become_user: "{{ lookup('env', 'USER') }}"
+      git:
+        repo: "https://github.com/asdf-vm/asdf.git"
+        dest: ~/.asdf
+        version: v0.8.1
+
+    - name: asdf-vm add bashrc
+      become_user: "{{ lookup('env', 'USER') }}"
+      lineinfile:
+        line: "{{ item }}"
+        path: ~/.bashrc
+      with_items:
+        - "# asdf-vm"
+        - ". $HOME/.asdf/asdf.sh"
+        - ". $HOME/.asdf/completions/asdf.bash"
+
+    - name: ASDF-VM plugins install
+      become_user: "{{ lookup('env', 'USER') }}"
+      shell: "$HOME/.asdf/bin/asdf plugin-add {{ item }}"
+      ignore_errors: yes
+      with_items:
+        - python
+
+    - name: Install Python 3.8.x under ASDF-VM
+      become_user: "{{ lookup('env', 'USER') }}"
+      shell: "$HOME/.asdf/bin/asdf install python 3.8.16"
+
+# git@ssh.dev.azure.com:v3/hubsd/DATA%20PLATAFORMA/g2p
+    - name: Download G2P
+      become_user: "{{ lookup('env', 'USER') }}"
+      git:
+        repo: "git@ssh.dev.azure.com:v3/hubsd/DATA%20PLATAFORMA/g2p"
+        dest: ~/G2P
+        key_file: ~/senai-0023793
+        accept_hostkey: yes
+        force: yes
+
+
+# git@ssh.dev.azure.com:v3/hubsd/DATA%20PLATAFORMA/g2p-luigi
+    - name: Download G2P
+      become_user: "{{ lookup('env', 'USER') }}"
+      git:
+        repo: "git@ssh.dev.azure.com:v3/hubsd/DATA%20PLATAFORMA/g2p-luigi"
+        dest: ~/G2P-LUIGI
+        key_file: ~/senai-0023793
+        accept_hostkey: yes
+        force: yes
