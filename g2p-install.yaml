@@ -11,6 +11,8 @@
         update_cache: yes
         cache_valid_time: 86400
 
+
+# MONGODB
     - name: MongoDB | Import public key
       apt_key:
         url: 'https://www.mongodb.org/static/pgp/server-4.2.asc'
@@ -30,6 +32,8 @@
         state: present
         update_cache: yes
 
+
+# JENKINS
     - name: Jenkins | Add APT Key
       ansible.builtin.shell: |
         curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io.key | sudo tee \
@@ -45,6 +49,38 @@
       tags:
         - jenkins
 
+
+# JAVA ORACLE
+    - name: Oracle Java | Add Repository
+      become: yes
+      apt_repository:
+        repo: "ppa:linuxuprising/java"
+      tags:
+        - oracle-java
+    
+    - name: Oracle Java | Accept License
+      become: yes
+      debconf:
+        name: "oracle-java17-installer"
+        question: "shared/accepted-oracle-license-v1-1"
+        value: "true"
+        vtype: "select"
+      tags:
+        - oracle-java
+    
+    - name: Oracle Java | Install Java 8
+      become: yes
+      apt:
+        name: "{{item}}"
+        state: latest
+      with_items:
+        - oracle-java17-installer
+        - oracle-java17-set-default
+      tags:
+        - oracle-java
+
+
+# Install Packages
     - name: APT | Install dependence packages
       apt:
         name: "{{ item }}"
@@ -72,19 +108,8 @@
         - python-is-python3
         - jenkins
 
-          # 
-          #     - name: Copy jenkins.list to /etc/apt/sources.list.d/jenkins.list
-          #       copy:
-          #         src: jenkins.list
-          #         dest: /etc/apt/sources.list.d/jenkins.list
-          # 
-          #     - name: Install Jenkins
-          #       apt: 
-          #         name: jenkins
-          #         update_cache: yes
-          #         install_recommends: no
 
-    - name: Setting local bin folder for non root user
+    - name: BASH | Setting local bin folder for non root user
       become_user: "{{ lookup('env', 'USER') }}"
       lineinfile:
         line: "{{ item }}"
@@ -93,14 +118,16 @@
         - "# set local/bin folder"
         - "export PATH=$PATH:$HOME/.local/bin"
 
-    - name: asdf-vm
+
+# ASDF-VM
+    - name: ASDF-VM
       become_user: "{{ lookup('env', 'USER') }}"
       git:
         repo: "https://github.com/asdf-vm/asdf.git"
         dest: ~/.asdf
         version: v0.8.1
 
-    - name: asdf-vm add bashrc
+    - name: ASDF-VM | add bashrc
       become_user: "{{ lookup('env', 'USER') }}"
       lineinfile:
         line: "{{ item }}"
@@ -110,17 +137,19 @@
         - ". $HOME/.asdf/asdf.sh"
         - ". $HOME/.asdf/completions/asdf.bash"
 
-    - name: ASDF-VM plugins install
+    - name: ASDF-VM | plugins install
       become_user: "{{ lookup('env', 'USER') }}"
       shell: "$HOME/.asdf/bin/asdf plugin-add {{ item }}"
       ignore_errors: yes
       with_items:
         - python
 
-    - name: Install Python 3.8.x under ASDF-VM
+    - name: ASDF-VM | Install Python 3.8.x
       become_user: "{{ lookup('env', 'USER') }}"
       shell: "$HOME/.asdf/bin/asdf install python 3.8.16"
 
+
+# G2P
 # git@ssh.dev.azure.com:v3/hubsd/DATA%20PLATAFORMA/g2p
     - name: Download G2P
       become_user: "{{ lookup('env', 'USER') }}"
@@ -141,3 +170,98 @@
         key_file: ~/senai-0023793
         accept_hostkey: yes
         force: yes
+        
+    - name: Create some directories
+      become_user: "{{ lookup('env', 'USER') }}"
+      file:
+        path: "~/{{ item }}"
+        state: directory
+      with_items:
+        - .apps
+        - .apps/metabase
+        - .apps/files
+      tags:
+        - metabase
+
+# METABASE
+    - name: Download Metabase
+      become_user: "{{ lookup('env', 'USER') }}"
+      ansible.builtin.get_url:
+        url: https://downloads.metabase.com/v0.45.2.1/metabase.jar
+        dest: ~/.apps/metabase/metabase.jar
+      tags:
+        - metabase
+
+
+# PENTAHO
+    - name: Pentaho | Download
+      become_user: "{{ lookup('env', 'USER') }}"
+      ansible.builtin.get_url:
+        url: https://sourceforge.net/projects/pentaho/files/Pentaho-9.3/client-tools/pdi-ce-9.3.0.0-428.zip/download
+        dest: ~/.apps/files/pdi-ce-9.3.0.0-428.zip
+      tags:
+        - pentaho
+
+    - name: Pentaho | Extract file
+      become_user: "{{ lookup('env', 'USER') }}"
+      ansible.builtin.unarchive:
+        src: ~/.apps/files/pdi-ce-9.3.0.0-428.zip
+        dest: ~/.apps
+      tags:
+        - pentaho
+
+
+# Pentaho mssql-jdbc drivers
+    - name: Pentaho | Download mssql-jdbc drivers
+      become_user: "{{ lookup('env', 'USER') }}"
+      ansible.builtin.get_url:
+        url: "{{ item }}"
+        dest: ~/.apps/files
+      with_items:
+        - https://github.com/microsoft/mssql-jdbc/releases/download/v9.4.1/mssql-jdbc-9.4.1.jre8.jar
+        - https://github.com/microsoft/mssql-jdbc/releases/download/v11.2.1/mssql-jdbc-11.2.1.jre8.jar
+      tags:
+        - pentaho
+
+    - name: Pentaho | Copy mssql-jdbc drivers to program path
+      become_user: "{{ lookup('env', 'USER') }}"
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: ~/.apps/data-integration/lib
+      with_items:
+        - ~/.apps/files/mssql-jdbc-9.4.1.jre8.jar
+        - ~/.apps/files/mssql-jdbc-11.2.1.jre8.jar 
+      tags:
+        - pentaho
+
+    - name: Pentaho | Add Repository libwebkitgtk-1.0-0
+      become: yes
+      apt_repository:
+        repo: "deb [trusted=yes] http://br.archive.ubuntu.com/ubuntu bionic main universe"
+      tags:
+        - pentaho
+
+    - name: APT | Install libwebkitgtk-1.0-0
+      apt:
+        name: "libwebkitgtk-1.0-0"
+        state: present
+        update_cache: yes
+      tags:
+        - pentaho
+
+# DBEAVER
+    - name: Dbeaver | Download
+      become_user: "{{ lookup('env', 'USER') }}"
+      ansible.builtin.get_url:
+        url: https://dbeaver.io/files/dbeaver-ce-latest-linux.gtk.x86_64.tar.gz
+        dest: ~/.apps/files/dbeaver-ce-latest-linux.gtk.x86_64.tar.gz
+      tags:
+        - dbeaver
+
+    - name: Dbeaver | Extract file
+      become_user: "{{ lookup('env', 'USER') }}"
+      ansible.builtin.unarchive:
+        src: ~/.apps/files/dbeaver-ce-latest-linux.gtk.x86_64.tar.gz
+        dest: ~/.apps
+      tags:
+        - dbeaver
