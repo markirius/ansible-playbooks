@@ -201,7 +201,7 @@
 #       git:
 #         repo: "git@ssh.dev.azure.com:v3/hubsd/DATA%20PLATAFORMA/g2p"
 #         dest: ~/G2P
-#         ikey_file: ~/senai-0023793
+#         ikey_file: ~/ssh_rsa_key
 #         accept_hostkey: yes
 #         force: yes
 # 
@@ -212,7 +212,7 @@
 #       git:
 #         repo: "git@ssh.dev.azure.com:v3/hubsd/DATA%20PLATAFORMA/g2p-luigi"
 #         dest: ~/G2P-LUIGI
-#         key_file: ~/senai-0023793
+#         key_file: ~/ssh_rsa_key
 #         accept_hostkey: yes
 #         force: yes
 #         
