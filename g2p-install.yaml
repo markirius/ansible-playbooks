@@ -15,13 +15,13 @@
 # MONGODB
     - name: MongoDB | Import public key
       apt_key:
-        url: 'https://www.mongodb.org/static/pgp/server-4.2.asc'
+        url: 'https://www.mongodb.org/static/pgp/server-6.0.asc'
         state: present
 
     - name: MongoDB | Add repository
       apt_repository:
-        filename: '/etc/apt/sources.list.d/mongodb-org-4.2.list'
-        repo: 'deb https://repo.mongodb.org/apt/ubuntu bionic/mongodb-org/4.2 multiverse'
+        filename: '/etc/apt/sources.list.d/mongodb-org-6.0.list'
+        repo: 'deb https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/6.0 multiverse'
         state: present
         update_cache: yes
 
@@ -126,7 +126,7 @@
       git:
         repo: "https://github.com/asdf-vm/asdf.git"
         dest: ~/.asdf
-        version: v0.8.1
+        version: v0.11.1
 
     - name: ASDF-VM | add bashrc
       become_user: "{{ lookup('env', 'USER') }}"
