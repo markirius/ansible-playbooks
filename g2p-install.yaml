@@ -51,33 +51,33 @@
 
 
 # JAVA ORACLE
-    - name: Oracle Java | Add Repository
-      become: yes
-      apt_repository:
-        repo: "ppa:linuxuprising/java"
-      tags:
-        - oracle-java
-    
-    - name: Oracle Java | Accept License
-      become: yes
-      debconf:
-        name: "oracle-java17-installer"
-        question: "shared/accepted-oracle-license-v1-1"
-        value: "true"
-        vtype: "select"
-      tags:
-        - oracle-java
-    
-    - name: Oracle Java | Install Java 8
-      become: yes
-      apt:
-        name: "{{item}}"
-        state: latest
-      with_items:
-        - oracle-java17-installer
-        - oracle-java17-set-default
-      tags:
-        - oracle-java
+#    - name: Oracle Java | Add Repository
+#      become: yes
+#      apt_repository:
+#        repo: "ppa:linuxuprising/java"
+#      tags:
+#        - oracle-java
+#    
+#    - name: Oracle Java | Accept License
+#      become: yes
+#      debconf:
+#        name: "oracle-java17-installer"
+#        question: "shared/accepted-oracle-license-v1-1"
+#        value: "true"
+#        vtype: "select"
+#      tags:
+#        - oracle-java
+#    
+#    - name: Oracle Java | Install Java 8
+#      become: yes
+#      apt:
+#        name: "{{item}}"
+#        state: latest
+#      with_items:
+#        - oracle-java17-installer
+#        - oracle-java17-set-default
+#      tags:
+#        - oracle-java
 
 
 # Install Packages
@@ -107,6 +107,7 @@
         - zlib1g-dev
         - python-is-python3
         - jenkins
+        - unzip
 
 
     - name: BASH | Setting local bin folder for non root user
@@ -149,27 +150,36 @@
       shell: "$HOME/.asdf/bin/asdf install python 3.8.16"
 
 
+# VARIABLES
+    - name: Include variables for git commands
+      ansible.builtin.include_vars:
+        file: variables.yaml
+        name: var
+      tags:
+        - g2p
+
 # G2P
-# git@ssh.dev.azure.com:v3/hubsd/DATA%20PLATAFORMA/g2p
+# https://hubsd@dev.azure.com/hubsd/DATA%20PLATAFORMA/_git/g2p
     - name: Download G2P
       become_user: "{{ lookup('env', 'USER') }}"
       git:
-        repo: "git@ssh.dev.azure.com:v3/hubsd/DATA%20PLATAFORMA/g2p"
-        dest: ~/G2P
-        key_file: ~/senai-0023793
-        accept_hostkey: yes
+        repo: "https://{{ var.git_user | urlencode }}:{{ var.git_pass | urlencode }}@dev.azure.com/hubsd/DATA%20PLATAFORMA/_git/g2p"
+        dest: ~/apps/G2P
         force: yes
+      tags:
+        - g2p
 
 
 # git@ssh.dev.azure.com:v3/hubsd/DATA%20PLATAFORMA/g2p-luigi
+# https://hubsd@dev.azure.com/hubsd/DATA%20PLATAFORMA/_git/g2p-luigi
     - name: Download G2P
       become_user: "{{ lookup('env', 'USER') }}"
       git:
-        repo: "git@ssh.dev.azure.com:v3/hubsd/DATA%20PLATAFORMA/g2p-luigi"
-        dest: ~/G2P-LUIGI
-        key_file: ~/senai-0023793
-        accept_hostkey: yes
+        repo: "https://{{ var.git_user | urlencode }}:{{ var.git_pass | urlencode }}@dev.azure.com/hubsd/DATA%20PLATAFORMA/_git/g2p-luigi"
+        dest: ~/apps/G2P-LUIGI
         force: yes
+      tags:
+        - g2p
         
     - name: Create some directories
       become_user: "{{ lookup('env', 'USER') }}"
@@ -177,18 +187,54 @@
         path: "~/{{ item }}"
         state: directory
       with_items:
-        - .apps
-        - .apps/metabase
-        - .apps/files
+        - apps
+        - apps/metabase
+        - apps/files
       tags:
         - metabase
+
+
+# G2P
+# git@ssh.dev.azure.com:v3/hubsd/DATA%20PLATAFORMA/g2p
+#     - name: Download G2P
+#       become_user: "{{ lookup('env', 'USER') }}"
+#       git:
+#         repo: "git@ssh.dev.azure.com:v3/hubsd/DATA%20PLATAFORMA/g2p"
+#         dest: ~/G2P
+#         ikey_file: ~/senai-0023793
+#         accept_hostkey: yes
+#         force: yes
+# 
+# 
+# # git@ssh.dev.azure.com:v3/hubsd/DATA%20PLATAFORMA/g2p-luigi
+#     - name: Download G2P
+#       become_user: "{{ lookup('env', 'USER') }}"
+#       git:
+#         repo: "git@ssh.dev.azure.com:v3/hubsd/DATA%20PLATAFORMA/g2p-luigi"
+#         dest: ~/G2P-LUIGI
+#         key_file: ~/senai-0023793
+#         accept_hostkey: yes
+#         force: yes
+#         
+#     - name: Create some directories
+#       become_user: "{{ lookup('env', 'USER') }}"
+#       file:
+#         path: "~/{{ item }}"
+#         state: directory
+#       with_items:
+#         - .apps
+#         - .apps/metabase
+#         - .apps/files
+#       tags:
+#         - metabase
+
 
 # METABASE
     - name: Download Metabase
       become_user: "{{ lookup('env', 'USER') }}"
       ansible.builtin.get_url:
         url: https://downloads.metabase.com/v0.45.2.1/metabase.jar
-        dest: ~/.apps/metabase/metabase.jar
+        dest: ~/apps/metabase/metabase.jar
       tags:
         - metabase
 
@@ -198,15 +244,16 @@
       become_user: "{{ lookup('env', 'USER') }}"
       ansible.builtin.get_url:
         url: https://sourceforge.net/projects/pentaho/files/Pentaho-9.3/client-tools/pdi-ce-9.3.0.0-428.zip/download
-        dest: ~/.apps/files/pdi-ce-9.3.0.0-428.zip
+        dest: ~/apps/files/pdi-ce-9.3.0.0-428.zip
+        checksum: sha256:5c7a453ec448d4b8a568e445b119bcf4f0f41517b42e3626bc437f882c9f46c1
       tags:
         - pentaho
 
     - name: Pentaho | Extract file
       become_user: "{{ lookup('env', 'USER') }}"
       ansible.builtin.unarchive:
-        src: ~/.apps/files/pdi-ce-9.3.0.0-428.zip
-        dest: ~/.apps
+        src: ~/apps/files/pdi-ce-9.3.0.0-428.zip
+        dest: ~/apps
       tags:
         - pentaho
 
@@ -216,7 +263,7 @@
       become_user: "{{ lookup('env', 'USER') }}"
       ansible.builtin.get_url:
         url: "{{ item }}"
-        dest: ~/.apps/files
+        dest: ~/apps/files
       with_items:
         - https://github.com/microsoft/mssql-jdbc/releases/download/v9.4.1/mssql-jdbc-9.4.1.jre8.jar
         - https://github.com/microsoft/mssql-jdbc/releases/download/v11.2.1/mssql-jdbc-11.2.1.jre8.jar
@@ -227,10 +274,10 @@
       become_user: "{{ lookup('env', 'USER') }}"
       ansible.builtin.copy:
         src: "{{ item }}"
-        dest: ~/.apps/data-integration/lib
+        dest: ~/apps/data-integration/lib
       with_items:
-        - ~/.apps/files/mssql-jdbc-9.4.1.jre8.jar
-        - ~/.apps/files/mssql-jdbc-11.2.1.jre8.jar 
+        - ~/apps/files/mssql-jdbc-9.4.1.jre8.jar
+        - ~/apps/files/mssql-jdbc-11.2.1.jre8.jar 
       tags:
         - pentaho
 
@@ -242,6 +289,7 @@
         - pentaho
 
     - name: APT | Install libwebkitgtk-1.0-0
+      become: yes
       apt:
         name: "libwebkitgtk-1.0-0"
         state: present
@@ -254,14 +302,34 @@
       become_user: "{{ lookup('env', 'USER') }}"
       ansible.builtin.get_url:
         url: https://dbeaver.io/files/dbeaver-ce-latest-linux.gtk.x86_64.tar.gz
-        dest: ~/.apps/files/dbeaver-ce-latest-linux.gtk.x86_64.tar.gz
+        dest: ~/apps/files/dbeaver-ce-latest-linux.gtk.x86_64.tar.gz
+        checksum: sha256:ab1c041d8f6962b01beb7ff9e8c7299c72f28e87b606fe319e65557650aab098
       tags:
         - dbeaver
 
     - name: Dbeaver | Extract file
       become_user: "{{ lookup('env', 'USER') }}"
       ansible.builtin.unarchive:
-        src: ~/.apps/files/dbeaver-ce-latest-linux.gtk.x86_64.tar.gz
-        dest: ~/.apps
+        src: ~/apps/files/dbeaver-ce-latest-linux.gtk.x86_64.tar.gz
+        dest: ~/apps
       tags:
         - dbeaver
+
+
+# https://downloads.mongodb.com/compass/mongodb-compass_1.35.0_amd64.deb
+    - name: MongoDB | Download MongoDB Compass
+      become_user: "{{ lookup('env', 'USER') }}"
+      ansible.builtin.get_url:
+        url: https://downloads.mongodb.com/compass/mongodb-compass_1.35.0_amd64.deb
+        dest: ~/apps/files/mongodb-compass_1.35.0_amd64.deb
+        checksum: sha256:5d29e1bf7f795f41ba9fb1b7310c6fa1204ead2ddc855e9f2e39b15d16922544
+      tags:
+        - compass
+
+    - name: APT | Install MongoDB Compass
+      become: yes
+      ansible.builtin.apt:
+        deb: "/home/{{ lookup('env', 'USER') }}/apps/files/mongodb-compass_1.35.0_amd64.deb"
+        update_cache: yes
+      tags:
+        - compass
