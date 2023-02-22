@@ -6,110 +6,91 @@
   tasks:
     - name: Update and upgrade system
       become: true
-      apt:
-        upgrade: yes
-        update_cache: yes
-        cache_valid_time: 86400
-
+      yum:
+        name: '*'
+        state: latest
 
 # MONGODB
-    - name: MongoDB | Import public key
-      apt_key:
-        url: 'https://www.mongodb.org/static/pgp/server-6.0.asc'
-        state: present
+# Issues do check
+# Access control is not enabled for the database. Read and write access to data and configuration is unrestricted
+# /sys/kernel/mm/transparent_hugepage/enabled is 'always'. We suggest setting it to 'never'
+# vm.max_map_count is too low
 
     - name: MongoDB | Add repository
-      apt_repository:
-        filename: '/etc/apt/sources.list.d/mongodb-org-6.0.list'
-        repo: 'deb https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/6.0 multiverse'
-        state: present
-        update_cache: yes
+      yum_repository:
+        name: mongodb
+        description: MongoDB yum repository
+        baseurl: 'https://repo.mongodb.org/yum/redhat/$releasever/mongodb-org/6.0/x86_64/'
+        gpgkey: 'https://www.mongodb.org/static/pgp/server-6.0.asc'
+        gpgcheck: yes
+        enabled: yes
+      tags:
+        - mongodb
+
+    - name: MongoDB | Create /data/db path to fix an issue on Oracle Linux
+      file: 
+        path: /data/db
+        state: directory
+        recurse: yes
+      tags:
+        - mongodb
 
     - name: MongoDB | Install
       become: true
-      apt:
+      yum:
         name: mongodb-org
         state: present
-        update_cache: yes
+      tags:
+        - mongodb
+
+    - name: MongoDB | Start and Enable Service
+      become: true
+      shell: |
+        systemctl start mongod
+        systemctl enable mongod
+      tags:
+        - mongodb
 
 
-# JENKINS
-    - name: Jenkins | Add APT Key
-      ansible.builtin.shell: |
-        curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io.key | sudo tee \
-        /usr/share/keyrings/jenkins-keyring.asc > /dev/null
+# JENKINS (need fix, see this: https://pkg.jenkins.io/redhat-stable/)
+#    - name: Jenkins | Add APT Key
+#      ansible.builtin.shell: |
+#        curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io.key | sudo tee \
+#        /usr/share/keyrings/jenkins-keyring.asc > /dev/null
+#      tags:
+#        - jenkins
+#
+#    - name: Jenkins | Write repository entry
+#      ansible.builtin.shell: |
+#        echo deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] \
+#        https://pkg.jenkins.io/debian-stable binary/ | sudo tee \
+#        /etc/apt/sources.list.d/jenkins.list > /dev/null
+#      tags:
+#        - jenkins
+
+    - name: Jenkins | Add repository
+      yum_repository:
+        name: jenkins
+        description: Jenkins-stable
+        baseurl: 'http://pkg.jenkins.io/redhat-stable'
+        gpgkey: 'https://pkg.jenkins.io/redhat-stable/jenkins.io.key'
+        gpgcheck: yes
+        enabled: yes
       tags:
         - jenkins
-
-    - name: Jenkins | Write repository entry
-      ansible.builtin.shell: |
-        echo deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] \
-        https://pkg.jenkins.io/debian-stable binary/ | sudo tee \
-        /etc/apt/sources.list.d/jenkins.list > /dev/null
-      tags:
-        - jenkins
-
-
-# JAVA ORACLE
-#    - name: Oracle Java | Add Repository
-#      become: yes
-#      apt_repository:
-#        repo: "ppa:linuxuprising/java"
-#      tags:
-#        - oracle-java
-#    
-#    - name: Oracle Java | Accept License
-#      become: yes
-#      debconf:
-#        name: "oracle-java17-installer"
-#        question: "shared/accepted-oracle-license-v1-1"
-#        value: "true"
-#        vtype: "select"
-#      tags:
-#        - oracle-java
-#    
-#    - name: Oracle Java | Install Java 8
-#      become: yes
-#      apt:
-#        name: "{{item}}"
-#        state: latest
-#      with_items:
-#        - oracle-java17-installer
-#        - oracle-java17-set-default
-#      tags:
-#        - oracle-java
 
 
 # Install Packages
-    - name: APT | Install dependence packages
-      apt:
-        name: "{{ item }}"
+    - name: YUM | Install dependence packages
+      yum:
+        name: ["@Development tools", "git", "vim", "java-11-openjdk", "make", "automake", "gcc", "gcc-c++", "kernel-devel", "unixODBC", "unixODBC-devel", "postgresql-odbc", "openssl-devel", "bzip2-devel", "libffi-devel", "unzip", "libsqlite3x-devel", "libsqlite3x", "libxml2-devel", "zlib-devel", "zlib", "ncurses-devel", "ncurses-devel", "ncurses"]
         state: present
         update_cache: yes
-      with_items:
-        - git
-        - vim
-        - openjdk-11-jre
-        - openjdk-11-jdk
-        - build-essential
-        - unixodbc
-        - unixodbc-dev
-        - odbcinst
-        - libbz2-dev
-        - libffi-dev
-        - liblzma-dev
-        - libncursesw5-dev
-        - libreadline-dev
-        - libsqlite3-dev
-        - libssl-dev
-        - libxml2-dev
-        - libxmlsec1-dev
-        - zlib1g-dev
-        - python-is-python3
-        - jenkins
-        - unzip
+      tags:
+        - yum
+        
 
-
+# ~/.bashrc
     - name: BASH | Setting local bin folder for non root user
       become_user: "{{ lookup('env', 'USER') }}"
       lineinfile:
@@ -170,7 +151,6 @@
         - g2p
 
 
-# git@ssh.dev.azure.com:v3/hubsd/DATA%20PLATAFORMA/g2p-luigi
 # https://hubsd@dev.azure.com/hubsd/DATA%20PLATAFORMA/_git/g2p-luigi
     - name: Download G2P
       become_user: "{{ lookup('env', 'USER') }}"
@@ -192,41 +172,6 @@
         - apps/files
       tags:
         - metabase
-
-
-# G2P
-# git@ssh.dev.azure.com:v3/hubsd/DATA%20PLATAFORMA/g2p
-#     - name: Download G2P
-#       become_user: "{{ lookup('env', 'USER') }}"
-#       git:
-#         repo: "git@ssh.dev.azure.com:v3/hubsd/DATA%20PLATAFORMA/g2p"
-#         dest: ~/G2P
-#         ikey_file: ~/ssh_rsa_key
-#         accept_hostkey: yes
-#         force: yes
-# 
-# 
-# # git@ssh.dev.azure.com:v3/hubsd/DATA%20PLATAFORMA/g2p-luigi
-#     - name: Download G2P
-#       become_user: "{{ lookup('env', 'USER') }}"
-#       git:
-#         repo: "git@ssh.dev.azure.com:v3/hubsd/DATA%20PLATAFORMA/g2p-luigi"
-#         dest: ~/G2P-LUIGI
-#         key_file: ~/ssh_rsa_key
-#         accept_hostkey: yes
-#         force: yes
-#         
-#     - name: Create some directories
-#       become_user: "{{ lookup('env', 'USER') }}"
-#       file:
-#         path: "~/{{ item }}"
-#         state: directory
-#       with_items:
-#         - .apps
-#         - .apps/metabase
-#         - .apps/files
-#       tags:
-#         - metabase
 
 
 # METABASE
@@ -281,21 +226,21 @@
       tags:
         - pentaho
 
-    - name: Pentaho | Add Repository libwebkitgtk-1.0-0
-      become: yes
-      apt_repository:
-        repo: "deb [trusted=yes] http://br.archive.ubuntu.com/ubuntu bionic main universe"
-      tags:
-        - pentaho
-
-    - name: APT | Install libwebkitgtk-1.0-0
-      become: yes
-      apt:
-        name: "libwebkitgtk-1.0-0"
-        state: present
-        update_cache: yes
-      tags:
-        - pentaho
+#    - name: Pentaho | Add Repository libwebkitgtk-1.0-0
+#      become: yes
+#      apt_repository:
+#        repo: "deb [trusted=yes] http://br.archive.ubuntu.com/ubuntu bionic main universe"
+#      tags:
+#        - pentaho
+#
+#    - name: APT | Install libwebkitgtk-1.0-0
+#      become: yes
+#      apt:
+#        name: "libwebkitgtk-1.0-0"
+#        state: present
+#        update_cache: yes
+#      tags:
+#        - pentaho
 
 # DBEAVER
     - name: Dbeaver | Download
@@ -303,7 +248,6 @@
       ansible.builtin.get_url:
         url: https://dbeaver.io/files/dbeaver-ce-latest-linux.gtk.x86_64.tar.gz
         dest: ~/apps/files/dbeaver-ce-latest-linux.gtk.x86_64.tar.gz
-        checksum: sha256:ab1c041d8f6962b01beb7ff9e8c7299c72f28e87b606fe319e65557650aab098
       tags:
         - dbeaver
 
@@ -316,20 +260,20 @@
         - dbeaver
 
 
-# https://downloads.mongodb.com/compass/mongodb-compass_1.35.0_amd64.deb
+# https://downloads.mongodb.com/compass/mongodb-compass-1.35.0.x86_64.rpm
     - name: MongoDB | Download MongoDB Compass
       become_user: "{{ lookup('env', 'USER') }}"
       ansible.builtin.get_url:
-        url: https://downloads.mongodb.com/compass/mongodb-compass_1.35.0_amd64.deb
-        dest: ~/apps/files/mongodb-compass_1.35.0_amd64.deb
-        checksum: sha256:5d29e1bf7f795f41ba9fb1b7310c6fa1204ead2ddc855e9f2e39b15d16922544
+        url: https://downloads.mongodb.com/compass/mongodb-compass-1.35.0.x86_64.rpm
+        dest: ~/apps/files/mongodb-compass-1.35.0.x86_64.rpm
       tags:
         - compass
 
-    - name: APT | Install MongoDB Compass
+    - name: YUM | Install MongoDB Compass
       become: yes
-      ansible.builtin.apt:
-        deb: "/home/{{ lookup('env', 'USER') }}/apps/files/mongodb-compass_1.35.0_amd64.deb"
-        update_cache: yes
+      yum:
+        name: "/home/{{ lookup('env', 'USER') }}/apps/files/mongodb-compass-1.35.0.x86_64.rpm"
+        state: present
+        disable_gpg_check: true
       tags:
         - compass
