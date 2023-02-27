@@ -1,2 +1,8 @@
-git_user: username
-git_pass: password
+# on git_url check your repository url after .com/
+# git_user: "devops https username"
+# git_pass: "devops https password"
+# git_url:  "devops project base name ex:. dev.azure.com/{{ git_url }}/_git/g2p
+
+git_user: "username"
+git_pass: "password"
+git_url:  "example base"

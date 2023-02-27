@@ -133,7 +133,7 @@
     - name: Download G2P
       become_user: "{{ lookup('env', 'USER') }}"
       git:
-        repo: "https://{{ var.git_user | urlencode }}:{{ var.git_pass | urlencode }}@dev.azure.com/hubsd/DATA%20PLATAFORMA/_git/g2p"
+        repo: "https://{{ var.git_user | urlencode }}:{{ var.git_pass | urlencode }}@dev.azure.com/{{ var.git_url }}/_git/g2p"
         dest: ~/apps/G2P
         force: yes
       tags:
@@ -144,7 +144,7 @@
     - name: Download G2P
       become_user: "{{ lookup('env', 'USER') }}"
       git:
-        repo: "https://{{ var.git_user | urlencode }}:{{ var.git_pass | urlencode }}@dev.azure.com/hubsd/DATA%20PLATAFORMA/_git/g2p-luigi"
+        repo: "https://{{ var.git_user | urlencode }}:{{ var.git_pass | urlencode }}@dev.azure.com/{{ var.git_url }}/_git/g2p-luigi"
         dest: ~/apps/G2P-LUIGI
         force: yes
       tags:
